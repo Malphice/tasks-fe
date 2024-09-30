@@ -1,101 +1,171 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+import {useState, useEffect, useCallback} from "react"
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
+import {Checkbox} from "@/components/ui/checkbox"
+import {ScrollArea} from "@/components/ui/scroll-area"
+import {Input} from "@/components/ui/input"
+import {Button} from "@/components/ui/button"
+import {Plus, Search, X} from "lucide-react"
+import {Task} from "@/index";
+import {createTask, deleteTask, getTasks, searchTasks, updateTask} from "@/utils/requests";
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog"
+import {Label} from "@/components/ui/label"
+import {Textarea} from "@/components/ui/textarea";
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+
+export default function Component() {
+    const [tasks, setTasks] = useState<Task[]>([])
+    const [hits, setHits] = useState<Task[] | null>(null)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+
+    const handleAddTask = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        const form = e.target as HTMLFormElement;
+
+        const titleInput = form.elements.namedItem('title') as HTMLInputElement;
+        const descriptionInput = form.elements.namedItem('description') as HTMLTextAreaElement;
+        const newTask = await createTask(titleInput.value, descriptionInput.value);
+
+        setTasks([...tasks, newTask])
+        setIsModalOpen(false)
+    }, [tasks])
+
+    useEffect(() => {
+        async function fetchTasks() {
+            const taskData = await getTasks()
+            setTasks(taskData)
+        }
+
+        fetchTasks()
+    }, [setTasks]);
+
+    const toggleTaskCompletion = async (id: string) => {
+        const task = tasks.find(task => task._id === id)
+        if (!task) return
+        try {
+            await updateTask(id, {completed: !task.completed})
+        } catch (e) {
+            console.log(e)
+            return
+        }
+        const updatedTask = {...task, completed: !task.completed}
+        const updatedTasks = tasks.map(task => task._id === id ? updatedTask : task)
+        setTasks(updatedTasks)
+    }
+
+
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteTask(id)
+        } catch (e) {
+            console.log(e)
+            return
+        }
+        const updatedTasks = tasks.filter(task => task._id !== id)
+        setTasks(updatedTasks)
+    }
+
+    const handleSearch = async (query: string) => {
+        if (!query || query === "") {
+            setHits(null)
+            return
+        }
+        if (query.length >= 2) {
+            const hits = await searchTasks(query)
+            setHits(hits)
+        }
+    }
+
+
+    return (
+        <div className="container mx-auto p-4">
+            <h1 className="text-2xl font-bold mb-4">Personal Task Management</h1>
+            <form className="mb-4 relative flex flex-row gap-4 items-center">
+                <Input
+                    type="text"
+                    placeholder="Search tasks..."
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10 pr-10"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
+                        size={18}/>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    type="reset"
+                    className=""
+                    onClick={() => setHits(null)}
+                >
+                    <X size={18}/>
+                </Button>
+                <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4"/> Add Task
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add New Task</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleAddTask} className="space-y-4">
+                            <div>
+                                <Label htmlFor="title">Title (required)</Label>
+                                <Input
+                                    id="title"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="description">Description (optional)</Label>
+                                <Textarea
+                                    id="description"
+                                />
+                            </div>
+                            <Button type="submit">Add Task</Button>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            </form>
+            <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                {hits === null ? tasks.map(task =>
+                    <TaskCard key={task._id} task={task} handleDelete={handleDelete}
+                              toggleTaskCompletion={toggleTaskCompletion}/>) : hits.length > 0 ? hits.map(hit =>
+                    <TaskCard key={hit._id} task={hit} handleDelete={handleDelete}
+                              toggleTaskCompletion={toggleTaskCompletion}/>) : <span>No task found</span>}
+            </ScrollArea>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    )
+}
+
+function TaskCard({task, handleDelete, toggleTaskCompletion}: {
+    task: Task,
+    handleDelete: (id: string) => void,
+    toggleTaskCompletion: (id: string) => void
+}) {
+    return (
+        <Card key={task._id} className="mb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 w-full">
+                <CardTitle className="text-sm font-medium">
+                                    <span className={task.completed ? "line-through text-muted-foreground" : ""}>
+                                        {task.title}
+                                    </span>
+                </CardTitle>
+                <X className="w-4 h-4" role="button" onClick={() => handleDelete(task._id)}></X>
+            </CardHeader>
+            <CardContent className="flex flex-row justify-between items-center">
+                <div>
+                    <p className={`text-sm ${task.completed ? "line-through text-muted-foreground" : ""}`}>
+                        {task.description}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">Date: {task.created_at.substring(0, 10)}</p>
+                </div>
+                <Checkbox
+                    checked={task.completed}
+                    onCheckedChange={() => toggleTaskCompletion(task._id)}
+                />
+            </CardContent>
+        </Card>
+    )
 }
