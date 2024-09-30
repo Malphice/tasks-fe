@@ -1,13 +1,13 @@
 import {Task} from "@/index";
 
 export async function getTasks(): Promise<Task[]>{
-    const res = await fetch("http://localhost:3000/task")
+    const res = await fetch("https://tasks-be-1.onrender.com/task")
     const data: Task[] = await res.json()
     return data
 }
 
 export async function createTask(title: string, description?: string): Promise<Task> {
-    const res = await fetch("http://localhost:3000/task", {
+    const res = await fetch("https://tasks-be-1.onrender.com/task", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -19,7 +19,7 @@ export async function createTask(title: string, description?: string): Promise<T
 }
 
 export async function updateTask(id: string, taskData: Partial<Task>): Promise<Task> {
-    const res = await fetch(`http://localhost:3000/task/${id}`, {
+    const res = await fetch(`https://tasks-be-1.onrender.com/task/${id}`, {
         method: "PATCH",
         headers: {
             "Content-Type": "application/json"
@@ -31,7 +31,7 @@ export async function updateTask(id: string, taskData: Partial<Task>): Promise<T
 }
 
 export async function deleteTask(id: string): Promise<void> {
-    await fetch(`http://localhost:3000/task/${id}`, {
+    await fetch(`https://tasks-be-1.onrender.com/task/${id}`, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json"
@@ -40,7 +40,7 @@ export async function deleteTask(id: string): Promise<void> {
 }
 
 export async function searchTasks(query: string): Promise<Task[]> {
-    const res = await fetch(`http://localhost:3000/task/search?query=${query}`)
+    const res = await fetch(`https://tasks-be-1.onrender.com/task/search?query=${query}`)
     const data: Task[] = await res.json()
     return data
 }
